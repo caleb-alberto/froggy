@@ -1,5 +1,0 @@
-(undo-tree-save-format-version . 1)
-"6b5157158c896a19be731245bde7a39304fbbae0"
-[nil nil nil nil (27290 4755 721293 612000) 0 nil]
-([nil current ((#("delta" 0 5 (fontified t)) . -711) (716 . 720) (#("delta" 0 5 (fontified t)) . -663) (668 . 672) (#("delta" 0 5 (face font-lock-variable-name-face fontified t)) . -201) (t 27290 4694 340209 950000) (206 . 210) 1 (t 27290 4694 340209 950000)) nil (27290 4755 721290 446000) 0 nil])
-nil
