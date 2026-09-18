@@ -1,5 +1,40 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+
+
+const unsigned int START_ADDRESS = 0x200;
+
+typedef struct {
+	uint8_t registers[16];
+	uint8_t memory[4096];
+	uint16_t index;
+	uint16_t pc;
+	uint16_t stack[16];
+	uint8_t sp;
+	uint8_t delayTimer;
+	uint8_t soundTimer;
+	uint8_t keypad[16];
+	uint32_t video[64 * 32];
+	uint16_t opcode;
+} Chip8;
+
+void main_loop() {
+}
+
+void read_ROM(Chip8* this, char* filename) {
+        FILE* rom = fopen(filename, "rb");
+
+        fseek(rom, 0, SEEK_END);
+        long size = ftell(rom);
+        uint8_t buffer[size];
+
+        fseek(rom, 0, SEEK_SET);
+        fread(buffer, sizeof(uint8_t), size, rom);
+
+	for (long i = 0; i < size; ++i)
+		this->memory[START_ADDRESS + i] = buffer[i];
+}
 
 int main() {
         struct timespec start, end;
