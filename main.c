@@ -4,9 +4,9 @@
 #include <time.h>
 
 
-const unsigned int START_ADDRESS = 0x200;
-const unsigned int FONTSET_SIZE = 80;
-const unsigned int FONTSET_START_ADDRESS = 0x50;
+#define START_ADDRESS 0x200
+#define FONTSET_SIZE 80
+#define FONTSET_START_ADDRESS 0x50
 
 typedef struct {
 	uint8_t registers[16];
@@ -59,10 +59,7 @@ int main() {
         mychip8.pc = START_ADDRESS;
 
         for (int i = 0; i < FONTSET_SIZE; i++)
-                mychip8.memory[FONTSET_SIZE + i] = fontset[i];
-
-        mychip8.memory[mychip8.pc] = 0x65;
-        mychip8.memory[mychip8.pc+1] = 0xA1;
+                mychip8.memory[FONTSET_START_ADDRESS + i] = fontset[i];
 
         while (1) {
 		clock_gettime(CLOCK_MONOTONIC, &end);
@@ -71,6 +68,7 @@ int main() {
 
                 if (last_cycle > freq_ns) {
                         last_cycle = 0;
+                        main_loop(&mychip8);
                 }
                 else {
                         if (prev_time_n > time_n)
@@ -84,21 +82,24 @@ int main() {
                 if (time_n >= 0 && time_n <= 100 && time_s == 1)
                         break;
         }
-        main_loop(&mychip8);
-        printf("pc after single loop %X\n", mychip8.pc);
 }
 
 void main_loop(chip8* this) {
-        this->opcode = get_instruction(this);
+        uint16_t instruction = get_instruction(this);
 
-        uint8_t first = (this->opcode & 0xF000) >> 12;
-        uint8_t x = (this->opcode & 0x0F00) >> 8;
-        uint8_t y = (this->opcode & 0x00F0) >> 4;
-        uint8_t n = (this->opcode & 0x000F);
-        uint8_t nn = (this->opcode & 0x00FF);
-        uint16_t nnn = (this->opcode & 0x0FFF);
+        uint8_t first = (instruction & 0xF000) >> 12;
+        uint8_t x = (instruction & 0x0F00) >> 8;
+        uint8_t y = (instruction & 0x00F0) >> 4;
+        uint8_t n = (instruction & 0x000F);
+        uint8_t nn = (instruction & 0x00FF);
+        uint16_t nnn = (instruction & 0x0FFF);
 
-        //switch
+        switch (first) {
+                case 0x0:
+                        break;
+                case 0x1:
+                        break;
+        }
 }
 
 uint16_t get_instruction(chip8* this) {
