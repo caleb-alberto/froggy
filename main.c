@@ -1,8 +1,8 @@
+#include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
-
 
 #define START_ADDRESS 0x200
 #define FONTSET_SIZE 80
@@ -19,7 +19,6 @@ typedef struct {
 	uint8_t soundTimer;
 	uint8_t keypad[16];
 	uint32_t video[64 * 32];
-	uint16_t opcode;
 } chip8;
 
 uint8_t fontset[FONTSET_SIZE] =
@@ -44,7 +43,7 @@ uint8_t fontset[FONTSET_SIZE] =
 
 void main_loop(chip8* this);
 uint16_t get_instruction(chip8* this);
-void read_ROM(chip8* this, char* filenaA1);
+void read_ROM(chip8* this, char* filename);
 uint8_t rand_byte();
 
 int main() {
@@ -92,12 +91,86 @@ void main_loop(chip8* this) {
         uint8_t y = (instruction & 0x00F0) >> 4;
         uint8_t n = (instruction & 0x000F);
         uint8_t nn = (instruction & 0x00FF);
-        uint16_t nnn = (instruction & 0x0FFF);
 
         switch (first) {
                 case 0x0:
+                        if (nn == 0xE0)
+                                memset(this->video, 0, sizeof(this->video));
+                        if (nn == 0xEE) {
+                                this->sp--;
+                                this->pc = this->stack[this->sp];
+                        }
                         break;
                 case 0x1:
+                        this->pc = instruction & 0x0FFF;
+                        break;
+                case 0x2:
+                        this->stack[this->sp] = this->pc;
+                	this->sp++;
+                	this->pc = instruction & 0x0FFF;
+                        break;
+                case 0x3:
+                        if (this->registers[x] == nn)
+                                this->pc += 2;
+                        break;
+                case 0x4:
+                        if (this->registers[x] != nn)
+                                this->pc += 2;
+                        break;
+                case 0x5:
+                        if (this->registers[x] == this->registers[y])
+                                this->pc += 2;
+                        break;
+                case 0x6:
+                        this->registers[x] = nn;
+                        break;
+                case 0x7:
+                        this->registers[x] += nn;
+                        break;
+                case 0x8:
+                        switch (n) {
+                                case 0x0:
+                                        this->registers[x] = this->registers[y];
+                                        break;
+                                case 0x1:
+                                        this->registers[x] |= this->registers[y];
+                                        break;
+                                case 0x2:
+                                        this->registers[x] &= this->registers[y];
+                                        break;
+                                case 0x3:
+                                        this->registers[x] ^= this->registers[y];
+                                        break;
+                                case 0x4:
+                                        this->registers[x] += this->registers[y];
+                                        break;
+                                case 0x5:
+                                        this->registers[x] -= this->registers[y];
+                                        break;
+                                case 0x6:
+                                        this->registers[x] = (this->registers[y] >> 1);
+                                        break;
+                                case 0x7:
+                                        this->registers[x] = this->registers[y] - this->registers[x];
+                                        break;
+                                case 0xE:
+                                        this->registers[x] = (this->registers[y] << 1);
+                                        break;
+                        }
+                        break;
+                case 0x9:
+                        if (this->registers[x] != this->registers[y])
+                                this->pc += 2;
+                        break;
+                case 0xA:
+                        this->index = nnn;
+                        break;
+                case 0xB:
+                        this->pc = instruction & 0x0FFF;
+                        this->pc += this->registers[0];
+                        break;
+                case 0xC:
+                        this->registers[x] = rand_byte() & nn;
                         break;
         }
 }
