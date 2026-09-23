@@ -1,3 +1,4 @@
+#include <SDL2/SDL.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -106,8 +107,8 @@ void main_loop(chip8* this) {
                         break;
                 case 0x2:
                         this->stack[this->sp] = this->pc;
-                	this->sp++;
-                	this->pc = instruction & 0x0FFF;
+                        this->sp++;
+                        this->pc = instruction & 0x0FFF;
                         break;
                 case 0x3:
                         if (this->registers[x] == nn)
@@ -163,7 +164,7 @@ void main_loop(chip8* this) {
                                 this->pc += 2;
                         break;
                 case 0xA:
-                        this->index = nnn;
+                        this->index = instruction & 0x0FFF;
                         break;
                 case 0xB:
                         this->pc = instruction & 0x0FFF;
