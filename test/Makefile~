@@ -1,0 +1,2 @@
+all: sdltest.c
+    gcc sdltest.c -o sdltest -L/opt/homebrew/lib

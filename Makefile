@@ -10,10 +10,10 @@ endif
 
 
 build: main.c
-	gcc $(CFLAGS) main.c -o main
+	gcc main.c -o main $(CFLAGS) $(LDFLAGS)
 
 clean: main
 	rm -f main
 
 debug: main.c
-	gcc $(CFLAGS) -g main.c -o main
+	gcc main.c -o main $(CFLAGS) -g $(LDFLAGS)
