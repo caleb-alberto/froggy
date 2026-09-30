@@ -5,6 +5,7 @@
 #define width 64
 #define height 32
 #define scale 20
+#define N 5
 
 int main() {
 	SDL_Window *window;
@@ -13,6 +14,20 @@ int main() {
 
         uint32_t video[width * height];
         memset(video, 0, sizeof(video));
+
+        uint8_t sprite[N] = { 0xF0, 0x10, 0xF0, 0x80, 0xFF };
+
+        for (int i = 0; i < N; i++) {
+                int row = i * 64;
+
+                for (int j = 0; j < 8; j++) {
+                        uint8_t video_bit = sprite[i] << j;
+                        video_bit &= 0x80;
+
+                        if (video_bit == 0x80)
+                                video[j + row] = 0xFFFFFFFF;
+                }
+        }
 
 	window = SDL_CreateWindow(
                 "froggy",
