@@ -14,18 +14,33 @@ int main() {
 
         uint32_t video[width * height];
         memset(video, 0, sizeof(video));
+        uint8_t memory[4096];
+        memset(memory, 0 sizeof(memory));
+        uint16_t index = 0x00F2;
 
         uint8_t sprite[N] = { 0xF0, 0x10, 0xF0, 0x80, 0xFF };
+        // sample x,y cords to begin rendering the sprite at:
+        int pix_x = 0;
+        int pix_y = 0;
+
+        pix_x %= 64;
+        pix_y %= 32;
+
+        video[0] = 0xFFFFFFFF;
 
         for (int i = 0; i < N; i++) {
-                int row = i * 64;
+                int row = (i + pix_y) * 64;
 
                 for (int j = 0; j < 8; j++) {
-                        uint8_t video_bit = sprite[i] << j;
-                        video_bit &= 0x80;
+                        int collumn = j + pix_x;
 
-                        if (video_bit == 0x80)
-                                video[j + row] = 0xFFFFFFFF;
+                        if (collumn < 64 && (collumn + row) < (width * height)) {
+                                uint8_t video_bit = sprite[i] << j;
+                                video_bit &= 0x80;
+
+                                if (video_bit == 0x80)
+                                        video[collumn + row] ^= 0xFFFFFFFF;
+                        }
                 }
         }
 

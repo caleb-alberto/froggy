@@ -57,6 +57,7 @@ int main() {
 
         chip8 mychip8;
         mychip8.pc = START_ADDRESS;
+        memset(mychip8.video, 0, sizeof(mychip8.video));
 
         for (int i = 0; i < FONTSET_SIZE; i++)
                 mychip8.memory[FONTSET_START_ADDRESS + i] = fontset[i];
