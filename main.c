@@ -8,6 +8,9 @@
 #define START_ADDRESS 0x200
 #define FONTSET_SIZE 80
 #define FONTSET_START_ADDRESS 0x50
+#define width 64
+#define height 32
+#define scale 20
 
 typedef struct {
 	uint8_t registers[16];
@@ -19,7 +22,10 @@ typedef struct {
 	uint8_t delayTimer;
 	uint8_t soundTimer;
 	uint8_t keypad[16];
-	uint32_t video[64 * 32];
+	uint32_t video[width * height];
+        SDL_Window* window;
+        SDL_Renderer* renderer;
+        SDL_Texture* texture;
 } chip8;
 
 uint8_t fontset[FONTSET_SIZE] =
@@ -43,6 +49,7 @@ uint8_t fontset[FONTSET_SIZE] =
 };
 
 void main_loop(chip8* this);
+void op_dxyn(chip8* this, uint8_t x, uint8_t y, uint8_t n);
 uint16_t get_instruction(chip8* this);
 void read_ROM(chip8* this, char* filename);
 uint8_t rand_byte();
@@ -51,20 +58,43 @@ int main() {
         struct timespec start, end;
         clock_gettime(CLOCK_MONOTONIC, &start);
 
-        time_t time_s = 0;
         long time_n = 0, prev_time_n = 0, last_cycle = 0;
         const long freq_ns = (long)(1e9 / 700);
 
-        chip8 mychip8;
+        chip8 mychip8 = {0};
         mychip8.pc = START_ADDRESS;
-        memset(mychip8.video, 0, sizeof(mychip8.video));
 
         for (int i = 0; i < FONTSET_SIZE; i++)
                 mychip8.memory[FONTSET_START_ADDRESS + i] = fontset[i];
 
+	SDL_Init(SDL_INIT_VIDEO);
+
+	mychip8.window = SDL_CreateWindow(
+                "froggy",
+                SDL_WINDOWPOS_UNDEFINED,
+                SDL_WINDOWPOS_UNDEFINED,
+                width * scale,
+                height * scale,
+                0
+        );
+
+        mychip8.renderer = SDL_CreateRenderer(mychip8.window, 0, 0);
+        mychip8.texture = SDL_CreateTexture(
+                mychip8.renderer,
+                SDL_PIXELFORMAT_ARGB8888,
+                SDL_TEXTUREACCESS_STREAMING,
+                width,
+                height
+        );
+
+        SDL_UpdateTexture(mychip8.texture, NULL, mychip8.video, width * sizeof(uint32_t));
+        SDL_RenderCopy(mychip8.renderer, mychip8.texture, NULL, NULL);
+        SDL_RenderPresent(mychip8.renderer);
+
+        SDL_Event event;
+
         while (1) {
 		clock_gettime(CLOCK_MONOTONIC, &end);
-		time_s = end.tv_sec - start.tv_sec;
 		time_n = end.tv_nsec - start.tv_nsec;
 
                 if (last_cycle > freq_ns) {
@@ -80,7 +110,8 @@ int main() {
 
                 prev_time_n = time_n;
 
-                if (time_n >= 0 && time_n <= 100 && time_s == 1)
+                SDL_PollEvent(&event);
+                if (event.type == SDL_QUIT)
                         break;
         }
 }
@@ -174,7 +205,44 @@ void main_loop(chip8* this) {
                 case 0xC:
                         this->registers[x] = rand_byte() & nn;
                         break;
+                case 0xD:
+                        op_dxyn(this, x, y, n);
+                        break;
         }
+}
+
+void op_dxyn(chip8* this, uint8_t x, uint8_t y, uint8_t n) {
+        int pix_x = this->registers[x];
+        int pix_y = this->registers[y];
+
+        pix_x %= 64;
+        pix_y %= 32;
+
+        this->registers[0xF] = 0;
+
+        for (int i = 0; i < n; i++) {
+                int row = (i + pix_y) * 64;
+
+                for (int j = 0; j < 8; j++) {
+                        int collumn = j + pix_x;
+
+                        if (collumn < 64 && (collumn + row) < (width * height)) {
+                                uint8_t video_bit = this->memory[this->index + i] << j;
+                                video_bit &= 0x80;
+
+                                if (video_bit == 0x80) {
+                                        if (this->video[collumn + row] == 0xFFFFFFFF)
+                                                this->registers[0xF] = 1;
+
+                                        this->video[collumn + row] ^= 0xFFFFFFFF;
+                                }
+                        }
+                }
+        }
+
+        SDL_UpdateTexture(this->texture, NULL, this->video, width * sizeof(uint32_t));
+        SDL_RenderCopy(this->renderer, this->texture, NULL, NULL);
+        SDL_RenderPresent(this->renderer);
 }
 
 uint16_t get_instruction(chip8* this) {
