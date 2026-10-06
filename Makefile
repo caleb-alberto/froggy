@@ -12,7 +12,7 @@ endif
 build: main.c
 	gcc main.c -o froggy $(CFLAGS) $(LDFLAGS)
 
-clean: main
+clean: froggy
 	rm -f froggy
 
 debug: main.c
