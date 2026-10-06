@@ -1,4 +1,6 @@
+#include <unistd.h>
 #include <SDL2/SDL.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -19,8 +21,8 @@ typedef struct {
 	uint16_t pc;
 	uint16_t stack[16];
 	uint8_t sp;
-	uint8_t delayTimer;
-	uint8_t soundTimer;
+	uint8_t delay;
+	uint8_t sound;
 	uint8_t keypad[16];
 	uint32_t video[width * height];
         SDL_Window* window;
@@ -28,7 +30,7 @@ typedef struct {
         SDL_Texture* texture;
 } chip8;
 
-uint8_t fontset[FONTSET_SIZE] =
+const uint8_t fontset[FONTSET_SIZE] =
 {
 	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 	0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -48,21 +50,42 @@ uint8_t fontset[FONTSET_SIZE] =
 	0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
+const SDL_Scancode CHIP8_KEYS[16] = {
+        SDL_SCANCODE_X, // 0
+        SDL_SCANCODE_1, // 1
+        SDL_SCANCODE_2, // 2
+        SDL_SCANCODE_3, // 3
+        SDL_SCANCODE_Q, // 4
+        SDL_SCANCODE_W, // 5
+        SDL_SCANCODE_E, // 6
+        SDL_SCANCODE_A, // 7
+        SDL_SCANCODE_S, // 8
+        SDL_SCANCODE_D, // 9
+        SDL_SCANCODE_Z, // A
+        SDL_SCANCODE_C, // B
+        SDL_SCANCODE_4, // C
+        SDL_SCANCODE_R, // D
+        SDL_SCANCODE_F, // E
+        SDL_SCANCODE_V, // F
+};
+
 void main_loop(chip8* this);
 void op_dxyn(chip8* this, uint8_t x, uint8_t y, uint8_t n);
+bool is_key(uint8_t key);
 uint16_t get_instruction(chip8* this);
 void read_ROM(chip8* this, char* filename);
 uint8_t rand_byte();
 
 int main() {
         struct timespec start, end;
-        clock_gettime(CLOCK_MONOTONIC, &start);
 
-        long time_n = 0, prev_time_n = 0, last_cycle = 0;
-        const long freq_ns = (long)(1e9 / 700);
+        long total_elapsed = 0, prev_time_n = 0, last_cycle = 0, timer_cycle = 0;
+        const long loop_freq = (long)(1e9 / 700);
+        const long timer_freq = (long)(1e9 / 60);
 
         chip8 mychip8 = {0};
         mychip8.pc = START_ADDRESS;
+        read_ROM(&mychip8, "ibm.ch8");
 
         for (int i = 0; i < FONTSET_SIZE; i++)
                 mychip8.memory[FONTSET_START_ADDRESS + i] = fontset[i];
@@ -93,24 +116,35 @@ int main() {
 
         SDL_Event event;
 
+        clock_gettime(CLOCK_MONOTONIC, &start);
+
         while (1) {
 		clock_gettime(CLOCK_MONOTONIC, &end);
-		time_n = end.tv_nsec - start.tv_nsec;
+		total_elapsed = (end.tv_sec - start.tv_sec) * (long)1e9
+                        + (end.tv_nsec - start.tv_nsec);
 
-                if (last_cycle > freq_ns) {
+                if (last_cycle > loop_freq) {
                         last_cycle = 0;
+                        SDL_PollEvent(&event);
                         main_loop(&mychip8);
                 }
                 else {
-                        if (prev_time_n > time_n)
-                                last_cycle += (long)(1e9 - prev_time_n) + time_n;
-                        else
-                                last_cycle += time_n - prev_time_n;
+                        last_cycle += total_elapsed - prev_time_n;
                 }
 
-                prev_time_n = time_n;
+                if (timer_cycle > timer_freq) {
+                        timer_cycle = 0;
+                        if (mychip8.delay > 0)
+                                mychip8.delay--;
+                        if (mychip8.sound > 0)
+                                mychip8.sound--;
+                }
+                else {
+                        timer_cycle += total_elapsed - prev_time_n;
+                }
 
-                SDL_PollEvent(&event);
+                prev_time_n = total_elapsed;
+
                 if (event.type == SDL_QUIT)
                         break;
         }
@@ -208,6 +242,33 @@ void main_loop(chip8* this) {
                 case 0xD:
                         op_dxyn(this, x, y, n);
                         break;
+		case 0xE:
+			if (nn == 0x9E) {
+                                if (is_key(this->registers[x]))
+                                        this->pc += 2;
+			}
+                        else {
+                                if (!is_key(this->registers[x]))
+                                        this->pc += 2;
+                        }
+                        break;
+                case 0xF:
+                        switch (nn) {
+                                case 0x07:
+                                        this->registers[x] = this->delay;
+                                        break;
+                                case 0x0A:
+                                        const uint8_t* state = SDL_GetKeyboardState(NULL);
+                                        for (int i = 0; i < 16; i++) {
+                                                if (state[CHIP8_KEYS[i]])
+                                                        break;
+                                                else {
+                                                        this->pc -= 2;
+                                                        break;
+                                                }
+                                        }
+                        }
+                        break;
         }
 }
 
@@ -243,6 +304,14 @@ void op_dxyn(chip8* this, uint8_t x, uint8_t y, uint8_t n) {
         SDL_UpdateTexture(this->texture, NULL, this->video, width * sizeof(uint32_t));
         SDL_RenderCopy(this->renderer, this->texture, NULL, NULL);
         SDL_RenderPresent(this->renderer);
+}
+
+bool is_key(uint8_t key) {
+        if (key > 15)
+                return false;
+        const uint8_t* state = SDL_GetKeyboardState(NULL);
+
+        return state[CHIP8_KEYS[key]];
 }
 
 uint16_t get_instruction(chip8* this) {
