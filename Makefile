@@ -10,10 +10,10 @@ endif
 
 
 build: main.c
-	gcc main.c -o main $(CFLAGS) $(LDFLAGS)
+	gcc main.c -o froggy $(CFLAGS) $(LDFLAGS)
 
 clean: main
-	rm -f main
+	rm -f froggy
 
 debug: main.c
-	gcc main.c -o main $(CFLAGS) -g $(LDFLAGS)
+	gcc main.c -o froggy $(CFLAGS) -g $(LDFLAGS)

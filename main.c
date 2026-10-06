@@ -76,7 +76,12 @@ uint16_t get_instruction(chip8* this);
 void read_ROM(chip8* this, char* filename);
 uint8_t rand_byte();
 
-int main() {
+int main(int argc, char *argv[]) {
+        if (argc != 2) {
+                printf("invalid arguments\n");
+                return 0;
+        }
+
         struct timespec start, end;
 
         long total_elapsed = 0, prev_time_n = 0, last_cycle = 0, timer_cycle = 0;
@@ -85,7 +90,7 @@ int main() {
 
         chip8 mychip8 = {0};
         mychip8.pc = START_ADDRESS;
-        read_ROM(&mychip8, "ibm.ch8");
+        read_ROM(&mychip8, argv[1]);
 
         for (int i = 0; i < FONTSET_SIZE; i++)
                 mychip8.memory[FONTSET_START_ADDRESS + i] = fontset[i];
@@ -257,15 +262,52 @@ void main_loop(chip8* this) {
                                 case 0x07:
                                         this->registers[x] = this->delay;
                                         break;
-                                case 0x0A:
-                                        const uint8_t* state = SDL_GetKeyboardState(NULL);
+                                case 0x0A: {
+                                        bool key_pressed = 0;
                                         for (int i = 0; i < 16; i++) {
-                                                if (state[CHIP8_KEYS[i]])
-                                                        break;
-                                                else {
-                                                        this->pc -= 2;
+                                                if (is_key(i)) {
+                                                        this->registers[x] = i;
+                                                        key_pressed = 1;
                                                         break;
                                                 }
+                                        }
+                                        if (!key_pressed)
+                                                this->pc -= 2;
+                                        break;
+                                }
+                                case 0x15:
+                                        this->delay = this->registers[x];
+                                        break;
+                                case 0x18:
+                                        this->sound = this->registers[x];
+                                        break;
+                                case 0x1E:
+                                        this->index += this->registers[x];
+                                        break;
+                                case 0x29:
+                                        this->index = FONTSET_START_ADDRESS +
+                                                (this->registers[x] * 5);
+                                        break;
+                                case 0x33: {
+                                        uint8_t value = this->registers[x];
+
+                                        this->memory[this->index + 2] = value & 10;
+                                        value /= 10;
+                                        this->memory[this->index + 1] = value & 10;
+                                        value /= 10;
+                                        this->memory[this->index] = value & 10;
+                                        break;
+                                }
+                                case 0x55:
+                                        for (int i = 0; i <= x; i++) {
+                                                this->memory[this->index + i] =
+                                                        this->registers[i];
+                                        }
+                                        break;
+                                case 0x65:
+                                        for (int i = 0; i <= x; i++) {
+                                                this->registers[i] =
+                                                        this->memory[this->index + i];
                                         }
                         }
                         break;
